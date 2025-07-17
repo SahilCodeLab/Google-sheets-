@@ -1,33 +1,35 @@
 from flask import Flask, request, jsonify
-from datetime import datetime
+from flask_cors import CORS
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask_cors import CORS
+import os
 
 app = Flask(__name__)
-CORS(app)  # Allow requests from any frontend
+CORS(app)
 
-# Setup Google Sheets API
+# Set scope & auth using credentials.json
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
 client = gspread.authorize(creds)
+
+# Open the correct Google Sheet by name (must match)
 sheet = client.open("Student_CV_Data").sheet1
 
 @app.route("/submit", methods=["POST"])
-def submit():
+def submit_data():
     data = request.json
-    row = [
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        data.get("name"),
-        data.get("email"),
-        data.get("phone"),
-        data.get("skills"),
-        data.get("linkedin"),
-        data.get("portfolio"),
-        data.get("message")
-    ]
-    sheet.append_row(row)
-    return jsonify({"status": "success", "message": "CV submitted successfully ✅"})
 
+    name = data.get("name", "")
+    email = data.get("email", "")
+    phone = data.get("phone", "")
+    skills = data.get("skills", "")
+
+    # Add to Google Sheet
+    sheet.append_row([name, email, phone, skills])
+
+    return jsonify({"message": "🎉 Data saved to Google Sheet!"}), 200
+
+# Required config for Render.com deployment
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))  # Render assigns dynamic ports
+    app.run(host="0.0.0.0", port=port, debug=True)
